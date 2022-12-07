@@ -108,6 +108,10 @@ func getObject(filename string) {
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
 	err = ioutil.WriteFile(filename, body, 0644)
 	if err != nil {
 		panic(err)
