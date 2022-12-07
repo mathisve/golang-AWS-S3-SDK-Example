@@ -1,151 +1,157 @@
 package main
 
 import (
-  "fmt"
-  "strings"
-  "os"
-  "io/ioutil"
-  "github.com/aws/aws-sdk-go/aws"
-  "github.com/aws/aws-sdk-go/aws/session"
-  "github.com/aws/aws-sdk-go/service/s3"
-  "github.com/aws/aws-sdk-go/aws/awserr"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 var (
-  s3session *s3.S3
+	s3session *s3.S3
 )
 
 const (
-  BUCKET_NAME = "mathis123"
-  REGION = "eu-central-1"
+	BUCKET_NAME = "mathis12345bucket"
+	REGION      = "eu-central-1"
 )
 
 func init() {
-  s3session = s3.New(session.Must(session.NewSession(&aws.Config{
-    Region: aws.String(REGION),
-    })))
+	s3session = s3.New(session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(REGION),
+	})))
 }
 
 func listBuckets() (resp *s3.ListBucketsOutput) {
-  resp, err := s3session.ListBuckets(&s3.ListBucketsInput{})
-  if err != nil {
-    panic(err)
-  }
+	resp, err := s3session.ListBuckets(&s3.ListBucketsInput{})
+	if err != nil {
+		panic(err)
+	}
 
-  return resp
+	return resp
 }
 
 func createBucket() (resp *s3.CreateBucketOutput) {
-  resp, err := s3session.CreateBucket(&s3.CreateBucketInput{
-    // ACL: aws.String(s3.BucketCannedACLPrivate),
-    // ACL: aws.String(s3.BucketCannedACLPublicRead),
-    Bucket: aws.String(BUCKET_NAME),
-    CreateBucketConfiguration: &s3.CreateBucketConfiguration{
-      LocationConstraint: aws.String(REGION),
-    },
-  })
-  if err != nil {
-    if aerr, ok := err.(awserr.Error); ok {
-      switch aerr.Code() {
-      case s3.ErrCodeBucketAlreadyExists:
-        fmt.Println("Bucket name already in use!")
-        panic(err)
-      case s3.ErrCodeBucketAlreadyOwnedByYou:
-        fmt.Println("Bucket exists and is owned by you!")
-      default:
-        panic(err)
-      }
-    }
-  }
+	resp, err := s3session.CreateBucket(&s3.CreateBucketInput{
+		// ACL: aws.String(s3.BucketCannedACLPrivate),
+		// ACL: aws.String(s3.BucketCannedACLPublicRead),
+		Bucket: aws.String(BUCKET_NAME),
+		CreateBucketConfiguration: &s3.CreateBucketConfiguration{
+			LocationConstraint: aws.String(REGION),
+		},
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeBucketAlreadyExists:
+				fmt.Println("Bucket name already in use!")
+				panic(err)
+			case s3.ErrCodeBucketAlreadyOwnedByYou:
+				fmt.Println("Bucket exists and is owned by you!")
+			default:
+				panic(err)
+			}
+		}
+	}
 
-  return resp
+	return resp
 }
 
 func uploadObject(filename string) (resp *s3.PutObjectOutput) {
-  f, err := os.Open(filename)
-  if err != nil {
-    panic(err)
-  }
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
 
-  fmt.Println("Uploading:", filename)
-  resp, err = s3session.PutObject(&s3.PutObjectInput{
-    Body: f,
-    Bucket: aws.String(BUCKET_NAME),
-    Key: aws.String(strings.Split(filename, "/")[1]),
-    ACL: aws.String(s3.BucketCannedACLPublicRead),
-  })
+	fmt.Println("Uploading:", filename)
+	resp, err = s3session.PutObject(&s3.PutObjectInput{
+		Body:   f,
+		Bucket: aws.String(BUCKET_NAME),
+		Key:    aws.String(strings.Split(filename, "/")[1]),
+		ACL:    aws.String(s3.BucketCannedACLPublicRead),
+	})
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  return resp
+	return resp
 }
 
 func listObjects() (resp *s3.ListObjectsV2Output) {
-  resp, err := s3session.ListObjectsV2(&s3.ListObjectsV2Input{
-    Bucket: aws.String(BUCKET_NAME),
-  })
+	resp, err := s3session.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(BUCKET_NAME),
+	})
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  return resp
+	return resp
 }
 
-func getObject(filename string) () {
-  fmt.Println("Downloading: ", filename)
+func getObject(filename string) {
+	fmt.Println("Downloading: ", filename)
 
-  resp, err := s3session.GetObject(&s3.GetObjectInput{
-    Bucket: aws.String(BUCKET_NAME),
-    Key: aws.String(filename),
-  })
+	resp, err := s3session.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(BUCKET_NAME),
+		Key:    aws.String(filename),
+	})
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  body, err := ioutil.ReadAll(resp.Body)
-  err = ioutil.WriteFile(filename, body, 0644)
-  if err != nil {
-    panic(err)
-  }
+	body, err := ioutil.ReadAll(resp.Body)
+	err = ioutil.WriteFile(filename, body, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func deleteObject(filename string) (resp *s3.DeleteObjectOutput) {
-  fmt.Println("Deleting: ", filename)
-  resp, err := s3session.DeleteObject(&s3.DeleteObjectInput{
-    Bucket: aws.String(BUCKET_NAME),
-    Key: aws.String(filename),
-  })
+	fmt.Println("Deleting: ", filename)
+	resp, err := s3session.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(BUCKET_NAME),
+		Key:    aws.String(filename),
+	})
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  return resp
+	return resp
 }
 
 func main() {
-  folder := "files"
+	folder := "files"
 
-  files, _ := ioutil.ReadDir(folder)
-  fmt.Println(files)
-  for _, file := range files {
-    if file.IsDir() {
-      continue
-    } else {
-      uploadObject(folder + "/" + file.Name())
-    }
-  }
+	// createBucket()
 
-  fmt.Println(listObjects())
+	for _, bucket := range listBuckets().Buckets {
+		fmt.Println(*bucket.Name)
+	}
 
-  for _, object := range listObjects().Contents {
-    getObject(*object.Key)
-    deleteObject(*object.Key)
-  }
+	files, _ := ioutil.ReadDir(folder)
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		} else {
+			uploadObject(folder + "/" + file.Name())
+		}
+	}
 
-  fmt.Println(listObjects())
+	fmt.Println(listObjects())
+
+	for _, object := range listObjects().Contents {
+		getObject(*object.Key)
+		deleteObject(*object.Key)
+	}
+
+	fmt.Println(listObjects())
 }
